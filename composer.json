@@ -13,7 +13,8 @@
     "require": {
         "phpmailer/phpmailer": "^6.1",
         "league/oauth2-client": "^2.4",
-        "swiftmailer/swiftmailer": "^6.2"
+        "symfony/mailer":"^6.2",
+        "symfony/mime":"^6.2"
     },
 	"autoload": {
 		"psr-4": {

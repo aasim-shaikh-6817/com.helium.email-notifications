@@ -1,97 +1,87 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: spencermerryman
- * Date: 2020-02-11
- * Time: 11:53
- */
-
 namespace Helium\EmailNotifications;
 
-use Swift_Attachment;
-use Swift_Mailer;
-use Swift_SmtpTransport;
-use Swift_Message;
-
+use Symfony\Component\Mailer\Transport;
+use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Mime\Email;
+use Symfony\Component\Mime\Address;
+use Symfony\Component\Mime\Part\DataPart;
 
 class SwiftMailerEngine implements EmailNotificationInterface
 {
+    private Email $_email;
+    private Mailer $_mailer;
+    private string $_dsn;
 
-	private $_swiftMessage = null;
-	private $_swiftTransport = null;
+    public function __construct()
+    {
+        $this->_email = new Email();
+    }
 
-	public function __construct()
-	{
-		$this->_swiftMessage = new Swift_Message();
-	}
+    public function sendEmail()
+    {
+        if (!$this->_mailer) {
+            throw new \Exception("Mailer not initialized. Call setServerSettings() first.");
+        }
+        return $this->_mailer->send($this->_email);
+    }
 
-	public function sendEmail()
-	{
-		$mailer = new Swift_Mailer($this->_swiftTransport);
-		return $mailer->send($this->_swiftMessage);
-	}
+    public function setServerSettings(array $serverSettings)
+    {
+        $this->_dsn = sprintf(
+            'smtp://%s:%s@%s:%d',
+            urlencode($serverSettings['mail_username']),
+            urlencode($serverSettings['mail_password']),
+            $serverSettings['mail_host'],
+            $serverSettings['mail_port']
+        );
 
-	public function setServerSettings(array $serverSettings)
-	{
-		$this->_swiftTransport = (new Swift_SmtpTransport($serverSettings['mail_host'], $serverSettings['mail_port']))
-			->setUsername($serverSettings['mail_username'])
-			->setPassword($serverSettings['mail_password']);
+        $transport = Transport::fromDsn($this->_dsn);
+        $this->_mailer = new Mailer($transport);
+    }
 
-		return $this->_swiftTransport;
-	}
+    public function setFromAddress(string $address, string $name = null)
+    {
+        $this->_email->from(new Address($address, $name ?? ''));
+    }
 
-	public function setFromAddress(string $address, string $name = null)
-	{
-		if ($name) {
-			return $this->_swiftMessage->setFrom([$address => $name]);
-		} else {
-			return $this->_swiftMessage->setFrom($address);
-		}
-	}
+    public function setRecipients(string $address, string $name = null)
+    {
+        $this->_email->to(new Address($address, $name ?? ''));
+    }
 
-	public function setRecipients(string $address, string $name = null)
-	{
-		return $this->_swiftMessage->addTo($address, $name);
-	}
+    public function setCC(string $address, string $name = null)
+    {
+        $this->_email->cc(new Address($address, $name ?? ''));
+    }
 
-	public function setCC(string $address, string $name = null)
-	{
-		return $this->_swiftMessage->addCc($address, $name);
-	}
+    public function setBCC(string $address, string $name = null)
+    {
+        $this->_email->bcc(new Address($address, $name ?? ''));
+    }
 
-	public function setBCC(string $address, string $name = null)
-	{
-		return $this->_swiftMessage->addBcc($address, $name);
-	}
+    public function setAttachment($attachment, string $name = null)
+    {
+        $this->_email->attachFromPath($attachment, $name);
+    }
 
-	public function setAttachment($attachment, string $name = null)
-	{
-		if ($name) {
-			return $this->_swiftMessage->attach(Swift_Attachment::fromPath($attachment)->setFilename($name));
-		} else {
-			return $this->_swiftMessage->attach(Swift_Attachment::fromPath($attachment));
-		}
-	}
+    public function setSubject(string $subject)
+    {
+        $this->_email->subject($subject);
+    }
 
-	public function setSubject(string $subject)
-	{
-		return $this->_swiftMessage->setSubject($subject);
-	}
+    public function setBody(string $body)
+    {
+        $this->_email->html($body);
+    }
 
-	public function setBody(string $body)
-	{
-		return $this->_swiftMessage->addPart($body, 'text/html');
-	}
+    public function setAltBody(string $altBody)
+    {
+        $this->_email->text($altBody);
+    }
 
-	public function setAltBody(string $altBody)
-	{
-		return $this->_swiftMessage->setBody($altBody);
-	}
-
-	public function setCustomHeader(string $header, string $value)
-	{
-		$headers = $this->_swiftMessage->getHeaders();
-		return $headers->addTextHeader($header, $value);
-	}
-
+    public function setCustomHeader(string $header, string $value)
+    {
+        $this->_email->getHeaders()->addTextHeader($header, $value);
+    }
 }
